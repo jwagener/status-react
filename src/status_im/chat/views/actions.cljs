@@ -9,7 +9,7 @@
 (defn delete-chat [chat-id]
   {:label   (i18n/label :t/delete-chat)
    ;; TODO(jeluard) Refactor this or Jan will have an heart attack
-   :action  #(do (re-frame/dispatch [:remove-chat chat-id])
+   :action  #(do (re-frame/dispatch [:remove-chat! chat-id])
                  (re-frame/dispatch [:navigation-replace :home]))})
 
 (defn leave-group-chat [chat-id]

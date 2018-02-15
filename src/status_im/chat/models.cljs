@@ -1,6 +1,9 @@
 (ns status-im.chat.models
-  (:require [status-im.ui.components.styles :as styles]
-            [status-im.utils.gfycat.core :as gfycat]))
+  (:require [clojure.string :as string]
+            [status-im.protocol.core :as protocol]
+            [status-im.ui.components.styles :as components-styles]
+            [status-im.utils.gfycat.core :as gfycat]
+            [status-im.utils.random :as random]))
 
 (defn set-chat-ui-props
   "Updates ui-props in active chat by merging provided kvs into them"
@@ -17,7 +20,7 @@
   (let [name (get-in db [:contacts/contacts chat-id :name])]
     {:chat-id    chat-id
      :name       (or name (gfycat/generate-gfy chat-id))
-     :color      styles/default-chat-color
+     :color      components-styles/default-chat-color
      :group-chat false
      :is-active  true
      :timestamp  now
@@ -59,3 +62,43 @@
   "Just like `update-chat` only implicitely updates timestamp"
   [cofx chat]
   (update-chat cofx (assoc chat :timestamp (:now cofx))))
+
+(defn remove-chat [{:keys [db]} chat-id]
+  (let [{:keys [chat-id group-chat debug?]} (get-in db [:chats chat-id])]
+    (cond-> {:db                      (-> db
+                                          (update :chats dissoc chat-id)
+                                          (update :deleted-chats (fnil conj #{}) chat-id))
+             :delete-pending-messages chat-id}
+      (or group-chat debug?)
+      (assoc :delete-messages chat-id)
+      debug?
+      (assoc :delete-chat chat-id)
+      (not debug?)
+      (assoc :deactivate-chat chat-id))))
+
+(defn group-name-from-contacts [contacts selected-contacts username]
+  (->> (select-keys contacts selected-contacts)
+       vals
+       (map :name)
+       (cons username)
+       (string/join ", ")))
+
+(defn prepare-group-chat
+  [{:keys [current-public-key username]
+    :group/keys [selected-contacts]
+    :contacts/keys [contacts]} group-name]
+  (let [selected-contacts'  (mapv #(hash-map :identity %) selected-contacts)
+        chat-name (if-not (string/blank? group-name)
+                    group-name
+                    (group-name-from-contacts contacts selected-contacts username))
+        {:keys [public private]} (protocol/new-keypair!)]
+    {:chat-id     (random/id)
+     :public-key  public
+     :private-key private
+     :name        chat-name
+     :color       components-styles/default-chat-color
+     :group-chat  true
+     :group-admin current-public-key
+     :is-active   true
+     :timestamp   (random/timestamp)
+     :contacts    selected-contacts'}))
