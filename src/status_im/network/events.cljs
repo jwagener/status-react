@@ -3,15 +3,19 @@
             [status-im.utils.handlers :as handlers]
             [status-im.network.net-info :as net-info]))
 
-(handlers/register-handler-fx
-  :listen-to-network-status!
-  (fn []
-    (let [handler #(re-frame/dispatch [:update-network-status %])]
-      (net-info/init handler)
-      (net-info/add-listener handler))))
+(re-frame/reg-fx
+  ::listen-to-network-status
+  (fn [handler]
+    (net-info/init handler)
+    (net-info/add-listener handler)))
 
 (handlers/register-handler-fx
-  :update-network-status
+  :listen-to-network-status
+  (fn []
+    {::listen-to-network-status #(re-frame/dispatch [::update-network-status %])}))
+
+(handlers/register-handler-fx
+  ::update-network-status
   [re-frame/trim-v]
   (fn [{:keys [db]} [is-connected?]]
     (let [status (if is-connected? :online :offline)]

@@ -227,7 +227,7 @@
      :dispatch-n       [[:initialize-db]
                         [:load-accounts]
                         [:check-console-chat]
-                        [:listen-to-network-status!]
+                        [:listen-to-network-status]
                         [:initialize-crypt]
                         [:initialize-geth]]}))
 
